@@ -15,7 +15,8 @@ if len(sys.argv) != 3:
     sys.exit()
 
 num_topics = int(sys.argv[2])
-doc_smoothing = 0.5
+#doc_smoothing = 0.5
+doc_smoothing = 0.05
 word_smoothing = 0.01
 
 stoplist = set()
@@ -33,6 +34,7 @@ topic_totals = np.zeros(num_topics, dtype=int)
 for line in open(sys.argv[1], encoding="utf-8"):
     #line = line.lower()
     
+    doc_id, lang, line = line.split(' ', 2)
     tokens = word_pattern.findall(line)
     
     ## remove stopwords, short words, and upper-cased words
@@ -41,7 +43,7 @@ for line in open(sys.argv[1], encoding="utf-8"):
     
     doc_topic_counts = np.zeros(num_topics, dtype=int)
     
-    documents.append({ "original": line, "token_strings": tokens, "topic_counts": doc_topic_counts })
+    documents.append({ "doc_id": doc_id, "original": line, "token_strings": tokens, "topic_counts": doc_topic_counts })
 
 ## Now that we're done reading from disk, we can count the total
 ##  number of words.
@@ -166,17 +168,22 @@ def write_state(writer):
 #profile()
 
 model = topicmodel.TopicModel(num_topics, vocabulary, doc_smoothing, word_smoothing)
-document = documents[0]
 
 for document in documents:
-    c_doc = topicmodel.Document(document["doc_tokens"], document["doc_topics"], document["topic_changes"], document["topic_counts"])
+    c_doc = topicmodel.Document(document["doc_id"], document["doc_tokens"], document["doc_topics"], document["topic_changes"], document["topic_counts"])
     model.add_document(c_doc)
 
-for i in range(20):
-    start = timer()
-    model.sample(50)
-    print(timer() - start)
-    model.print_all_topics()
+model.sample(1000)
+
+print('#doc source pos typeindex type topic')
+print('#alpha : {}'.format(' '.join([str(doc_smoothing) for _ in range(num_topics)])))
+print('#beta : {}'.format(str(word_smoothing)))
+
+for doc_i, document in enumerate(model.documents):
+    for token_j in range(len(document.doc_tokens)):
+        print(' '.join([str(doc_i), str(document.doc_id), str(token_j), str(document.doc_tokens[token_j]), str(vocabulary[document.doc_tokens[token_j]]), str(document.doc_topics[token_j])]))
+print()
+model.print_all_topics()
     
 
 #sample(1000)

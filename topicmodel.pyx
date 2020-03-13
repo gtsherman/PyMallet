@@ -7,7 +7,8 @@ from timeit import default_timer as timer
 
 class Document:
     
-    def __init__(self, long[:] doc_tokens, long[:] doc_topics, long[:] topic_changes, long[:] doc_topic_counts):
+    def __init__(self, str doc_id, long[:] doc_tokens, long[:] doc_topics, long[:] topic_changes, long[:] doc_topic_counts):
+        self.doc_id = doc_id
         self.doc_tokens = doc_tokens
         self.doc_topics = doc_topics
         self.topic_changes = topic_changes
