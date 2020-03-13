@@ -1,8 +1,12 @@
 # cython: linetrace=True
+# cython: language_level=3
+
+import random
+import sys
+
+import numpy as np
 
 from cython.view cimport array as cvarray
-import numpy as np
-import random
 from timeit import default_timer as timer
 
 class Document:
@@ -133,10 +137,12 @@ cdef class TopicModel:
             w = sorted_words[i]
             print("{}\t{}".format(w[0], w[1]))
 
-    def print_all_topics(self):
+    def print_all_topics(self, out=sys.stdout):
         for topic in range(self.num_topics):
             sorted_words = sorted(zip(self.word_topics[:,topic], self.vocabulary), reverse=True)
-            print(" ".join([w for x, w in sorted_words[:20]]))
+            print(str(topic), end="\t", file=out)
+            print(str(self.word_smoothing), end="\t", file=out)
+            print(" ".join([w for x, w in sorted_words[:20]]), file=out)
 
 
 
