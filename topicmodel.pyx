@@ -141,7 +141,7 @@ cdef class TopicModel:
         for topic in range(self.num_topics):
             sorted_words = sorted(zip(self.word_topics[:,topic], self.vocabulary), reverse=True)
             print(str(topic), end="\t", file=out)
-            print(str(self.word_smoothing), end="\t", file=out)
+            print(str(self.doc_smoothing), end="\t", file=out)
             print(" ".join([w for x, w in sorted_words[:20]]), file=out)
 
 

@@ -1,4 +1,5 @@
 import argparse
+import os
 import random
 import re
 from collections import Counter
@@ -42,7 +43,7 @@ if __name__ == '__main__':
 
     if not args.no_stopping:
         print('Loading stoplist')
-        stoplist = load_stopwords(args.stoplist)
+        stoplist = load_stopwords(os.path.join('stoplists', '{}.txt'.format(args.stoplist)))
         if args.extra_stopwords:
             stoplist = stoplist.union(load_stopwords(args.extra_stopwords))
 
