@@ -1,0 +1,6 @@
+include *.md
+include *.in
+include setup.py
+include pymallet/stoplists/*
+
+exclude pymallet/__pycache__/*
