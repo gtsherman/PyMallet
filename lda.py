@@ -3,64 +3,46 @@ import os
 import random
 import re
 from collections import Counter
+from io import StringIO
 
+import dlatk.pymallet.topicmodel as topicmodel
+import dlatk.pymallet.defaults as defaults
 import numpy as np
-import pyximport
 
-pyximport.install()
-import topicmodel
+token_regex = r'(#|@)?(?!(\W)\2+)([a-zA-Z\_\-\'0-9\(-\@]{2,})'
 
 
-def load_stopwords(filename):
-    stoplist = set()
-    try:
-        with open(filename, encoding="utf-8") as stop_reader:
-            for line in stop_reader:
-                line = line.rstrip()
-                stoplist.add(line)
-    except FileNotFoundError:
-        print('Unable to open stoplist file: {}'.format(filename))
-    return stoplist
+def _unified_interface(some_input, *args):
+    if isinstance(some_input, StringIO):
+        return some_input
+    else:
+        return open(some_input, *args)
 
 
-if __name__ == '__main__':
-    options = argparse.ArgumentParser(description='Run latent Dirichlet allocation using collapsed Gibbs sampling.')
-    options.add_argument('docs_file')
-    options.add_argument('num_topics', nargs='?', type=int, default=100)
-    options.add_argument('--output-state', type=str, default='lda_model.state')
-    options.add_argument('--output-topic-keys', type=str, default='lda_model.keys')
-    options.add_argument('--stoplist', choices=['en'], default='en')
-    options.add_argument('--extra-stopwords')
-    options.add_argument('--no-stopping', action='store_true')
-    options.add_argument('--alpha', type=float, default=0.05)
-    options.add_argument('--beta', type=float, default=0.01)
-    options.add_argument('--iterations', type=int, default=1000)
-    args = options.parse_args()
+def estimate_topics(docs_file, num_topics=defaults.NUM_TOPICS, alpha=defaults.ALPHA, beta=defaults.BETA,
+                    iterations=defaults.NUM_ITERATIONS, stoplist=None, output_state=defaults.OUTPUT_STATE_FILE,
+                    output_topic_keys=defaults.OUTPUT_TOPIC_KEYS_FILE):
+    num_topics = num_topics
+    doc_smoothing = alpha / num_topics
+    word_smoothing = beta
 
-    num_topics = args.num_topics
-    doc_smoothing = args.alpha
-    word_smoothing = args.beta
-
-    if not args.no_stopping:
-        print('Loading stoplist')
-        stoplist = load_stopwords(os.path.join('stoplists', '{}.txt'.format(args.stoplist)))
-        if args.extra_stopwords:
-            stoplist = stoplist.union(load_stopwords(args.extra_stopwords))
+    if stoplist is None:
+        stoplist = set()
 
     word_counts = Counter()
 
     documents = []
-    word_topics = {}
     topic_totals = np.zeros(num_topics, dtype=int)
 
     print('Loading documents')
-    for line in open(args.docs_file, encoding="utf-8"):
-        # line = line.lower()
+    docs_input = _unified_interface(docs_file)
+    for line in docs_input:
+        line = line.lower()
 
         doc_id, lang, line = line.split(' ', 2)
-        tokens = [token.group(0) for token in re.finditer(r'(#|@)?(?!(\W)\2+)([a-zA-Z\_\-\'0-9\(-\@]{2,})', line)]
+        tokens = [token.group(0) for token in re.finditer(token_regex, line)]
 
-        # remove stopwords, short words, and upper-cased words
+        # remove stopwords
         tokens = [w for w in tokens if w not in stoplist]
         word_counts.update(tokens)
 
@@ -68,8 +50,6 @@ if __name__ == '__main__':
 
         documents.append(
             {"doc_id": doc_id, "original": line, "token_strings": tokens, "topic_counts": doc_topic_counts})
-
-    # Now that we're done reading from disk, we can count the total number of words.
 
     vocabulary = list(word_counts.keys())
     vocabulary_size = len(vocabulary)
@@ -103,7 +83,6 @@ if __name__ == '__main__':
         document["doc_topics"] = doc_topics
         document["topic_changes"] = topic_changes
 
-    sampling_dist = np.zeros(num_topics, dtype=float)
     topic_normalizers = np.zeros(num_topics, dtype=float)
     for topic in range(num_topics):
         topic_normalizers[topic] = 1.0 / (topic_totals[topic] + smoothing_times_vocab_size)
@@ -117,10 +96,11 @@ if __name__ == '__main__':
         model.add_document(c_doc)
 
     print('Estimating topics')
-    model.sample(args.iterations)
+    model.sample(iterations)
 
     print('Printing state file')
-    with open(args.output_state, 'w') as state_out:
+    output_state_interface = _unified_interface(output_state, 'w')
+    with output_state_interface as state_out:
         print('#doc source pos typeindex type topic', file=state_out)
         print('#alpha : {}'.format(' '.join([str(doc_smoothing) for _ in range(num_topics)])), file=state_out)
         print('#beta : {}'.format(str(word_smoothing)), file=state_out)
@@ -132,5 +112,42 @@ if __name__ == '__main__':
                       file=state_out)
 
     print('Printing keys file')
-    with open(args.output_topic_keys, 'w') as key_out:
+    output_keys_interface = _unified_interface(output_topic_keys, 'w')
+    with output_keys_interface as key_out:
         model.print_all_topics(out=key_out)
+
+
+if __name__ == '__main__':
+    mallet_stoplists = ['de', 'en', 'fi', 'fr', 'jp', 'nl']
+
+    options = argparse.ArgumentParser(
+        description='Run latent Dirichlet allocation using collapsed Gibbs sampling.')
+    options.add_argument('docs_file')
+    options.add_argument('num_topics', nargs='?', type=int, default=defaults.NUM_TOPICS)
+    options.add_argument('--output-state', type=str, default=defaults.OUTPUT_STATE_FILE)
+    options.add_argument('--output-topic-keys', type=str, default=defaults.OUTPUT_TOPIC_KEYS_FILE)
+    options.add_argument('--stoplist', help='Loads a stoplist file (a list of stopwords). Can also specify a Mallet '
+                         'stoplist for the following languages: {}'.format(str(mallet_stoplists)))
+    options.add_argument('--alpha', type=float, default=defaults.ALPHA)
+    options.add_argument('--beta', type=float, default=defaults.BETA)
+    options.add_argument('--iterations', type=int, default=defaults.NUM_ITERATIONS)
+    args = options.parse_args()
+
+    stoplist = set()
+    if args.stoplist:
+        if args.stoplist in mallet_stoplists:
+            args.stoplist = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'stoplists',
+                                         '{}.txt'.format(args.stoplist))
+        try:
+            with open(args.stoplist, encoding="utf-8") as stop_reader:
+                for line in stop_reader:
+                    line = line.rstrip()
+                    stoplist.add(line)
+            print('Loaded stoplist: {}'.format(args.stoplist))
+        except FileNotFoundError:
+            print('Unable to open stoplist file: {}'.format(args.stoplist))
+    else:
+        print('Warning: No stoplist selected. This may lead to suboptimal results.')
+
+    estimate_topics(args.docs_file, args.num_topics, args.alpha, args.beta, args.iterations, stoplist,
+                    args.output_state, args.output_topic_keys)
