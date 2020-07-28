@@ -1,5 +1,4 @@
 import os
-import pathlib
 import sys
 
 _version = sys.version_info[0]
@@ -21,7 +20,7 @@ ext = '.pyx' if USE_CYTHON else '.c'
 EXTENSIONS = [Extension(name='pymallet.topicmodel', sources=['pymallet/topicmodel{}'.format(ext)])]
 if USE_CYTHON:
     print('Using Cython')
-    EXTENSIONS = cythonize(extensions)
+    EXTENSIONS = cythonize(EXTENSIONS)
 
 class build(build_orig):
 
@@ -31,7 +30,7 @@ class build(build_orig):
         import numpy
         EXTENSIONS[0].include_dirs.append(numpy.get_include())
 
-HERE = pathlib.Path(__file__).parent
+HERE = os.path.dirname(os.path.realpath(__file__))
 
 README = open(os.path.join(HERE, 'README.md')).read()
 
