@@ -2,7 +2,11 @@
 
 ## Acknowledgment
 
-This package is a redistributed fork of https://github.com/mimno/PyMallet. Modifications have been made to the code to enable simpler interfacing with DLATK; however, the core functionality remains unmodified.
+This package is a redistributed fork of https://github.com/mimno/PyMallet. Modifications have been made to the code to enable simpler interfacing with [DLATK](https://github.com/dlatk/dlatk); however, the core functionality remains unmodified.
+
+## Installation
+
+This version of PyMallet can be installed with `pip install dlatk-pymallet`.
 
 ## Original README
 
