@@ -36,7 +36,7 @@ README = open(os.path.join(HERE, 'README.md')).read()
 
 setup(
     name='dlatk-pymallet',
-    version='1.0.0',
+    version='1.0.2',
     description='A PyMallet implementation adapted to DLATK.',
     long_description=README,
     long_description_content_type='text/markdown',

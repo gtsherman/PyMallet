@@ -6,3 +6,4 @@ ALPHA = 5.0
 BETA = 0.01
 OUTPUT_STATE_FILE = '/tmp/lda_model.state'
 OUTPUT_TOPIC_KEYS_FILE = '/tmp/lda_model.keys'
+LANGUAGE = 'en'

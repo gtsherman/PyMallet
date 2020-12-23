@@ -8,7 +8,11 @@ from io import StringIO
 from pymallet import defaults, topicmodel
 import numpy as np
 
-token_regex = r'(#|@)?(?!(\W)\2+)([a-zA-Z\_\-\'0-9\(-\@]{2,})'
+
+token_regexes = {
+    'en': r'(#|@)?(?!(\W)\2+)([a-zA-Z\_\-\'0-9\(-\@]{2,})',
+    'zh': r'([\p{L}\p{M}]+|[\p{IsHan}]+)'
+}
 
 
 def _unified_interface(some_input, *args):
@@ -20,7 +24,7 @@ def _unified_interface(some_input, *args):
 
 def estimate_topics(docs_file, num_topics=defaults.NUM_TOPICS, alpha=defaults.ALPHA, beta=defaults.BETA,
                     iterations=defaults.NUM_ITERATIONS, stoplist=None, output_state=defaults.OUTPUT_STATE_FILE,
-                    output_topic_keys=defaults.OUTPUT_TOPIC_KEYS_FILE):
+                    output_topic_keys=defaults.OUTPUT_TOPIC_KEYS_FILE, language=defaults.LANGUAGE):
     num_topics = num_topics
     doc_smoothing = alpha / num_topics
     word_smoothing = beta
@@ -39,7 +43,7 @@ def estimate_topics(docs_file, num_topics=defaults.NUM_TOPICS, alpha=defaults.AL
         line = line.lower()
 
         doc_id, lang, line = line.split(' ', 2)
-        tokens = [token.group(0) for token in re.finditer(token_regex, line)]
+        tokens = [token.group(0) for token in re.finditer(token_regexes[language], line)]
 
         # remove stopwords
         tokens = [w for w in tokens if w not in stoplist]
@@ -130,11 +134,15 @@ def main():
     options.add_argument('--alpha', type=float, default=defaults.ALPHA)
     options.add_argument('--beta', type=float, default=defaults.BETA)
     options.add_argument('--iterations', type=int, default=defaults.NUM_ITERATIONS)
+    options.add_argument('--language', type=str, choices=['en', 'zh'], default=defaults.LANGUAGE)
     args = options.parse_args()
 
     stoplist = set()
     if args.stoplist:
         if args.stoplist in mallet_stoplists:
+            if args.stoplist != args.language:
+                print('Warning: Stoplist language ({stoplang}) does not match overall language ({overlang})'.format(
+                    args.stoplist, args.language))
             args.stoplist = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'stoplists',
                                          '{}.txt'.format(args.stoplist))
         try:
@@ -149,7 +157,7 @@ def main():
         print('Warning: No stoplist selected. This may lead to suboptimal results.')
 
     estimate_topics(args.docs_file, args.num_topics, args.alpha, args.beta, args.iterations, stoplist,
-                    args.output_state, args.output_topic_keys)
+                    args.output_state, args.output_topic_keys, language=args.language)
 
 
 if __name__ == '__main__':
